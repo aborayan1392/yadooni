@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>الكتاب - نسخة PWA</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <meta name="theme-color" content="#0ea5e9" />
+  <style>
+    :root { --bg:#f5f5f5; --paper:#fff; }
+    * { box-sizing:border-box; }
+    body { margin:0; background: var(--bg); font-family: system-ui, -apple-system, 'Cairo', 'Tajawal', Arial, sans-serif; }
+    .header { position: sticky; top:0; background:#fff; border-bottom:1px solid #eee; padding: .6rem 1rem; z-index:10;
+      display:flex; gap:.5rem; align-items:center; justify-content:space-between; }
+    .btn { padding:.45rem .8rem; border:1px solid #e5e7eb; border-radius:.6rem; background:#fff; cursor:pointer; text-decoration:none; color:#111; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 1rem; }
+    .page { background: var(--paper); box-shadow: 0 2px 10px rgba(0,0,0,.08); border-radius: .5rem; overflow: hidden; margin: 0 auto 1rem; border:1px solid #eee; }
+    .page img { width:100%; height:auto; display:block; image-rendering:auto; }
+    .caption { text-align:center; color:#666; font-size:.85rem; padding:.25rem 0 .75rem; }
+    @media print { body { background:#fff; } .header { display:none; } .container { padding:0; }
+      .page { box-shadow:none; border:none; page-break-after:always; break-after:page; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>عرض الكتاب (PWA) — يعمل أوفلاين</div>
+    <div>
+      <a class="btn" href="./yadooni.pdf" download>تنزيل PDF</a>
+      <button class="btn" onclick="window.print()">طباعة</button>
+      <button class="btn" id="installBtn" hidden>تثبيت التطبيق</button>
+    </div>
+  </div>
+  <div class="container" id="pages"></div>
+  <script>
+    // Build pages dynamically so we don't hardcode the count.
+    async function buildPages() {
+      // Try to infer number of pages by listing via a manifest list (pre-generated in sw) or brute guess.
+      // Since we can't list directory in browser, we'll fetch a 'pages.json' we generate here.
+      const res = await fetch('./pages.json');
+      const pages = await res.json();
+      const root = document.getElementById('pages');
+      for (let i=0;i<pages.length;i++) {
+        const name = pages[i];
+        const fig = document.createElement('figure');
+        fig.className = 'page';
+        const img = document.createElement('img');
+        img.src = './' + name;
+        img.alt = 'صفحة ' + (i+1);
+        img.loading = 'lazy';
+        const cap = document.createElement('figcaption');
+        cap.className = 'caption';
+        cap.textContent = 'صفحة ' + (i+1);
+        fig.appendChild(img);
+        fig.appendChild(cap);
+        root.appendChild(fig);
+      }
+    }
+    buildPages();
+
+    // PWA install prompt
+    let deferredPrompt;
+    const installBtn = document.getElementById('installBtn');
+    window.addEventListener('beforeinstallprompt', (e)=>{
+      e.preventDefault();
+      deferredPrompt = e;
+      installBtn.hidden = false;
+    });
+    installBtn?.addEventListener('click', async ()=>{
+      if(!deferredPrompt) return;
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      installBtn.hidden = true;
+    });
+
+    // Register SW
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', ()=>{
+        navigator.serviceWorker.register('./sw.js');
+      });
+    }
+  </script>
+</body>
+</html>
